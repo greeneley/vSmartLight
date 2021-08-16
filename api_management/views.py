@@ -9,11 +9,14 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+
+
 # Create your views here.
 
 
-def test_api(request, question_id):
+def test_api(request):
     response = json.dumps([{"number": 1}])
+    process(1, 1)
     return HttpResponse(response, content_type='text/json')
 
 
@@ -21,7 +24,7 @@ class VehicleCounter(APIView):
     def get(self, request):
         intersection_id = request.GET["intersection_id"]
         traffic_signal_program_id = request.GET["traffic_signal_program_id"]
-        phase_counter, timestamp = GetPhaseVehicleCounter(intersection_id, traffic_signal_program_id)
+        phase_counter, timestamp = Get_Phase_Vehicle_Counter(intersection_id, traffic_signal_program_id)
         response = json.dumps([{
             "intersection_id": str(intersection_id),
             "traffic_signal_program_id": str(traffic_signal_program_id),
@@ -31,19 +34,16 @@ class VehicleCounter(APIView):
         }])
         return HttpResponse(response, content_type='text/json')
 
-class TrafficSignalProgram(APIView):
+
+class Traffic_Signal_Program(APIView):
     def get(self, request):
         intersection_id = request.GET["intersection_id"]
         traffic_signal_program_id = request.GET["traffic_signal_program_id"]
         response = Get_Traffic_Signal_Program(intersection_id, traffic_signal_program_id)
         return HttpResponse(response, content_type='text/json')
+
+    @csrf_exempt
     def post(self, request):
-        pass
-
-
-@csrf_exempt
-def add_traffic_signal_program(request):
-    if request.method == "POST":
         payload = json.loads(request.body.decode('utf-8'))
         intersection_id = payload['intersection_id']
         traffic_signal_program_id = payload['traffic_signal_program_id']
@@ -72,7 +72,8 @@ def add_traffic_signal_program(request):
         # except:
         #
         for phase in phases:
-            new_phase = Phase(traffic_signal_program=new_traffic_signal_control,index=phase['index'],
+            new_phase = Phase(traffic_signal_program=new_traffic_signal_control,
+                              index=phase['index'],
                               green_time=phase['green_time'],
                               start_time_index=phase['start_time_index'],
                               capacity=phase['capacity'])
@@ -82,4 +83,3 @@ def add_traffic_signal_program(request):
                 response = json.dumps([{'Error': 'Phase could not be added!'}])
         response = json.dumps([{'Success': 'Traffic signal program added successfully!'}])
         return HttpResponse(response, content_type="text/json")
-
