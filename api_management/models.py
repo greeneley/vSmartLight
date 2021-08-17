@@ -21,13 +21,15 @@ class Camera(models.Model):
     ip_device = models.CharField(max_length=45, blank=True, null=True)
     port_device = models.SmallIntegerField(blank=True, null=True)
     mac_device = models.CharField(max_length=45, blank=True, null=True)
-    stream_url = models.TextField()
-    longitude = models.DecimalField(max_digits=10, decimal_places=8)
-    latitude = models.DecimalField(max_digits=10, decimal_places=8)
+    http = models.TextField(db_column='HTTP')  # Field name made lowercase.
+    rstp = models.TextField(db_column='RSTP', blank=True, null=True)  # Field name made lowercase.
+    longitude = models.DecimalField(max_digits=10, decimal_places=8, blank=True, null=True)
+    latitude = models.DecimalField(max_digits=10, decimal_places=8, blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = 'camera'
+
 
 
 class Direction(models.Model):
@@ -85,6 +87,7 @@ class Phase(models.Model):
     green_time = models.IntegerField(blank=True, null=True)
     start_time_index = models.IntegerField(blank=True, null=True)
     capacity = models.IntegerField(blank=True, null=True)
+    name = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         managed = False
@@ -94,6 +97,7 @@ class Phase(models.Model):
 class TrafficSignalProgram(models.Model):
     traffic_signal_program_id = models.AutoField(primary_key=True)
     intersection = models.ForeignKey(Intersection, models.DO_NOTHING)
+    name = models.CharField(max_length=255, blank=True, null=True)
     yellow_time = models.IntegerField(blank=True, null=True)
     time_transition = models.IntegerField(blank=True, null=True)
     green_time_max = models.IntegerField(blank=True, null=True)
@@ -101,11 +105,17 @@ class TrafficSignalProgram(models.Model):
     time_available_end = models.TimeField(blank=True, null=True)
     days_of_week = models.IntegerField(blank=True, null=True)
     type_program = models.IntegerField(blank=True, null=True)
+    active_automation = models.IntegerField(blank=True, null=True)
+    active_threashold = models.IntegerField(blank=True, null=True)
+    performance = models.CharField(max_length=45, blank=True, null=True)
+    origin_traffic_signal_program_id = models.IntegerField(blank=True, null=True)
+    name_orgin_traffic_signal_program = models.CharField(max_length=45, blank=True, null=True)
+    time_created = models.DateTimeField(blank=True, null=True)
+
 
     class Meta:
         managed = False
         db_table = 'traffic_signal_program'
-
 
 
 class TrafficSignalProgramLog(models.Model):
@@ -134,17 +144,13 @@ class User(models.Model):
 class VehicleCounter(models.Model):
     record_id = models.AutoField(primary_key=True)
     camera = models.ForeignKey(Camera, models.DO_NOTHING)
-    timestamp = models.DateTimeField(blank=True, null=True)
-    total = models.IntegerField(blank=True, null=True)
+    time_created = models.DateTimeField(blank=True, null=True)
     motorbike = models.IntegerField(blank=True, null=True)
     car = models.IntegerField(blank=True, null=True)
     bus = models.IntegerField(blank=True, null=True)
     truck = models.IntegerField(blank=True, null=True)
+    total = models.IntegerField(blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = 'vehicle_counter'
-
-
-
-

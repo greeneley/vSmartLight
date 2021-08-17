@@ -1,6 +1,11 @@
 from .models import *
 import json
+import random
+import datetime
 
+
+def evaluation_programs(old_program, new_program):
+    return random.randint(10, 20)
 def Convert_Bit_To_Days_Of_Week(binary):
     list_days_of_week = []
     if (binary & 1) > 0:
@@ -69,7 +74,7 @@ def Get_Phase_Vehicle_Counter(intersection_id, traffic_signal_program_id):
         camera_list = Camera.objects.filter(phase_id=phase.phase_id)
         for camera in camera_list:
             object = VehicleCounter.objects.filter(camera_id=camera.camera_id).values()
-            timestamp = object[0]['timestamp']
+            timestamp = object[0]['time_created']
             phase_once["total"] += object[0]["total"]
             phase_once["motorbike"] += object[0]["motorbike"]
             phase_once["car"] += object[0]["car"]
@@ -78,27 +83,32 @@ def Get_Phase_Vehicle_Counter(intersection_id, traffic_signal_program_id):
         phase_counter.append(phase_once)
     return phase_counter, timestamp
 
-def Get_Traffic_Signal_Program(intersection_id, traffic_signal_program_id):
+
+def Get_Traffic_Signal_Program(intersection_name, traffic_signal_program_name):
     """
     :param intersection_id:
     :param traffic_signal_program_id:
     :return:
     [
     {
-        "intersection_id": "0",
+        "intersection_id": "1",
         "traffic_signal_program_id": "1",
+        "intersection_name": "Nguyễn Văn Linh - Hàm Nghi",
+        "traffic_signal_program_name": "CT_01",
         "phase": [
             {
                 "index": 0,
-                "green_time": 15,
+                "green_time": 27,
                 "start_time_index": 0,
-                "capacity": 600
+                "capacity": 400,
+                "name": "bắc - nam, nam - bắc"
             },
             {
                 "index": 1,
-                "green_time": 39,
+                "green_time": 27,
                 "start_time_index": 19,
-                "capacity": 700
+                "capacity": 300,
+                "name": "đông - tây, tây - đông"
             }
         ],
         "yellow_time": 3,
@@ -112,22 +122,34 @@ def Get_Traffic_Signal_Program(intersection_id, traffic_signal_program_id):
             "Wednesday",
             "Thursday"
         ],
-        "type_program": 0
+        "type_program": 0,
+        "active_automation": 1,
+        "active_threashold": 15,
+        "performance": null,
+        "origin_traffic_signal_program_id": null,
+        "name_orgin_traffic_signal_program": null
     }
 ]
     """
 
+    intersection_id = Intersection.objects.get(name=intersection_name).intersection_id
+    traffic_signal_program_id = \
+        TrafficSignalProgram.objects.filter(intersection_id=intersection_id,
+                                            name=traffic_signal_program_name).values()[0][
+            "traffic_signal_program_id"]
     traffic_signal_program = TrafficSignalProgram.objects.get(pk=traffic_signal_program_id)
     phase_list = Phase.objects.filter(traffic_signal_program=traffic_signal_program_id)
 
     phases = []
     for phase in phase_list:
         phases.append({"index": phase.index, "green_time": phase.green_time, "start_time_index": phase.start_time_index,
-                       "capacity": phase.capacity})
+                       "capacity": phase.capacity, "name": phase.name})
 
     response = json.dumps([{
         "intersection_id": str(intersection_id),
         "traffic_signal_program_id": str(traffic_signal_program_id),
+        "intersection_name": intersection_name,
+        "traffic_signal_program_name": traffic_signal_program_name,
         "phase": phases,
         "yellow_time": traffic_signal_program.yellow_time,
         "time_transition": traffic_signal_program.time_transition,
@@ -135,20 +157,35 @@ def Get_Traffic_Signal_Program(intersection_id, traffic_signal_program_id):
         "time_available_begin": str(traffic_signal_program.time_available_begin),
         "time_available_end": str(traffic_signal_program.time_available_end),
         "days_of_week": Convert_Bit_To_Days_Of_Week(traffic_signal_program.days_of_week),
-        "type_program": 0
+        "type_program": traffic_signal_program.type_program,
+        "active_automation": traffic_signal_program.active_automation,
+        "active_threashold": traffic_signal_program.active_threashold,
+        "performance": traffic_signal_program.performance,
+        "origin_traffic_signal_program_id": traffic_signal_program.origin_traffic_signal_program_id,
+        "name_orgin_traffic_signal_program": traffic_signal_program.name_orgin_traffic_signal_program
     }])
     return response
 
-def add_traffic_signal_program(intersection_id, traffic_signal_program_id, phases, yellow_time, time_transition, green_time_max, time_available_begin, time_available_end, days_of_week, type_program):
-    new_traffic_signal_control = TrafficSignalProgram(traffic_signal_program_id=traffic_signal_program_id,
-                                                      intersection_id=intersection_id,
+
+def add_traffic_signal_program(intersection_id, traffic_signal_program_name, phases, yellow_time, time_transition,
+                               green_time_max, time_available_begin, time_available_end, days_of_week, type_program,
+                               active_automation=None, active_threashold=None, performance=None,
+                               origin_traffic_signal_program_id=None, name_orgin_traffic_signal_program=None):
+    new_traffic_signal_control = TrafficSignalProgram(intersection_id=intersection_id,
+                                                      name=traffic_signal_program_name,
                                                       yellow_time=yellow_time,
                                                       time_transition=time_transition,
                                                       green_time_max=green_time_max,
                                                       time_available_begin=time_available_begin,
                                                       time_available_end=time_available_end,
                                                       days_of_week=Convert_Days_Of_Week(days_of_week),
-                                                      type_program=type_program)
+                                                      type_program=type_program,
+                                                      active_automation=active_automation,
+                                                      active_threashold=active_threashold,
+                                                      performance=performance,
+                                                      origin_traffic_signal_program_id=origin_traffic_signal_program_id,
+                                                      name_orgin_traffic_signal_program=name_orgin_traffic_signal_program,
+                                                      time_created=datetime.datetime.now())
     try:
         new_traffic_signal_control.save()
     except:
@@ -162,15 +199,29 @@ def add_traffic_signal_program(intersection_id, traffic_signal_program_id, phase
                           index=phase['index'],
                           green_time=phase['green_time'],
                           start_time_index=phase['start_time_index'],
-                          capacity=phase['capacity'])
+                          capacity=phase['capacity'],
+                          name=phase["name"])
         try:
             new_phase.save()
         except:
             response = json.dumps([{'Error': 'Phase could not be added!'}])
 
+        if active_automation == 1:
+            try:
+                list_camera = phase["camera"]
+                for _camera in list_camera:
+                    new_camera = Camera(phase=new_phase, http=_camera["http"], rstp=_camera["rstp"])
+                    try:
+                        new_camera.save()
+                    except:
+                        print("Camera could not be added")
+                        response = json.dumps([{'Error': 'Camera could not be added!'}])
+            except:
+                print("Camera data doesn't exist")
 
-def getVolumeToCapacity(motocycle_count, car_count, bus_count, truck_count, capacity):
-    return (0.25*motocycle_count + 1*car_count + 3*bus_count + 2.5*truck_count)/capacity
+
+def get_volume_to_capacity(motocycle_count, car_count, bus_count, truck_count, capacity):
+    return (0.25 * motocycle_count + 1 * car_count + 3 * bus_count + 2.5 * truck_count) / capacity
 
 
 def get_level_of_service(motocycle_count, car_count, bus_count, truck_count, capacity):
@@ -178,7 +229,7 @@ def get_level_of_service(motocycle_count, car_count, bus_count, truck_count, cap
     Phan loai Density cua giao lo
     KHONG CAN VIET LAI
     """
-    volume_to_capacity_value = getVolumeToCapacity(motocycle_count, car_count, bus_count, truck_count, capacity)
+    volume_to_capacity_value = get_volume_to_capacity(motocycle_count, car_count, bus_count, truck_count, capacity)
     if volume_to_capacity_value < 0.6:
         return "A"
     elif volume_to_capacity_value < 0.7:
@@ -192,21 +243,17 @@ def get_level_of_service(motocycle_count, car_count, bus_count, truck_count, cap
     else:
         return "F"
 
-# def evaluation_road():
-#     # traffic_signal_program = Get_Traffic_Signal_Program()
-#     # Vehiclle_Counter = Get_Phase_Vehicle_Counter()
-#     los = get_level_of_service(Vehicle_Counter[0], traffic_signal_program.phase[0].capacity)
-#     return los
-
 
 def changeCycleTimeTrafficLightControl(traffic_signal_program, scale):
     for _item in traffic_signal_program["phase"]:
-        _item["green_time"] = round(_item["green_time"]*scale)
+        _item["green_time"] = round(_item["green_time"] * scale)
     return traffic_signal_program
+
 
 def changeGreenTimeTrafficLightControlForEachLanes(traffic_signal_program, vehicle_counter):
     for phase_program, phase_counter in zip(traffic_signal_program["phase"], vehicle_counter):
-        los = get_level_of_service(phase_counter["motorbike"], phase_counter["car"], phase_counter["bus"], phase_counter["truck"], phase_program['capacity'])
+        los = get_level_of_service(phase_counter["motorbike"], phase_counter["car"], phase_counter["bus"],
+                                   phase_counter["truck"], phase_program['capacity'])
         phase_program["level"] = los
 
     """
@@ -218,16 +265,16 @@ def changeGreenTimeTrafficLightControlForEachLanes(traffic_signal_program, vehic
 
     for _element in traffic_signal_program["phase"]:
         if _element["level"] == "B":
-            loss_time += round(GREEN_TIME_MAX*(1-0.5)) - _element["green_time"]
+            loss_time += round(GREEN_TIME_MAX * (1 - 0.5)) - _element["green_time"]
             count += 1
         elif _element["level"] == "C":
-            loss_time += round(GREEN_TIME_MAX*(1-0.7)) - _element["green_time"]
+            loss_time += round(GREEN_TIME_MAX * (1 - 0.7)) - _element["green_time"]
             count += 1
         elif _element["level"] == "D":
-            loss_time += round(GREEN_TIME_MAX*(1-0.3)) - _element["green_time"]
+            loss_time += round(GREEN_TIME_MAX * (1 - 0.3)) - _element["green_time"]
             count += 1
         elif _element["level"] == "E":
-            loss_time += round(GREEN_TIME_MAX*(1-0.4)) - _element["green_time"]
+            loss_time += round(GREEN_TIME_MAX * (1 - 0.4)) - _element["green_time"]
             count += 1
         elif _element["level"] == "F":
             loss_time += GREEN_TIME_MAX - _element["green_time"]
@@ -236,26 +283,28 @@ def changeGreenTimeTrafficLightControlForEachLanes(traffic_signal_program, vehic
             count = 1
     for _element in traffic_signal_program["phase"]:
         if _element["level"] == "B":
-            _element["green_time"] = round(GREEN_TIME_MAX(1-0.5))
+            _element["green_time"] = round(GREEN_TIME_MAX(1 - 0.5))
             _element.pop('level')
         elif _element["level"] == "C":
-            _element["green_time"] = round(GREEN_TIME_MAX(1-0.7))
+            _element["green_time"] = round(GREEN_TIME_MAX(1 - 0.7))
             _element.pop('level')
         elif _element["level"] == "D":
-            _element["green_time"] = round(GREEN_TIME_MAX(1-0.3))
+            _element["green_time"] = round(GREEN_TIME_MAX(1 - 0.3))
             _element.pop('level')
         elif _element["level"] == "E":
-            _element["green_time"] = round(GREEN_TIME_MAX(1-0.4))
+            _element["green_time"] = round(GREEN_TIME_MAX(1 - 0.4))
             _element.pop('level')
         elif _element["level"] == "F":
             _element["green_time"] = round(GREEN_TIME_MAX)
             _element.pop('level')
         else:
-            _element["green_time"] = round(_element["green_time"] - (loss_time)/count if _element["green_time"] - (loss_time)/count >= GREEN_TIME_MIN else GREEN_TIME_MIN)
+            _element["green_time"] = round(_element["green_time"] - (loss_time) / count if _element["green_time"] - (
+                loss_time) / count >= GREEN_TIME_MIN else GREEN_TIME_MIN)
             _element.pop('level')
     return traffic_signal_program
-def process(intersection_id, traffic_signal_program_id):
 
+
+def process(intersection_name, traffic_signal_program_name):
     """
     1.Lấy dữ liệu đếm xe của từng pha
     1.1
@@ -263,9 +312,14 @@ def process(intersection_id, traffic_signal_program_id):
     :return:
     """
 
-    traffic_signal_program = json.loads(Get_Traffic_Signal_Program(intersection_id, traffic_signal_program_id))[0]
-    vehicle_counter, _ = Get_Phase_Vehicle_Counter(intersection_id, traffic_signal_program_id)
+    intersection_id = Intersection.objects.get(name=intersection_name).intersection_id
+    traffic_signal_program_id = \
+        TrafficSignalProgram.objects.filter(intersection_id=intersection_id,
+                                            name=traffic_signal_program_name).values()[0][
+            "traffic_signal_program_id"]
 
+    traffic_signal_program = json.loads(Get_Traffic_Signal_Program(intersection_name, traffic_signal_program_name))[0]
+    vehicle_counter, _ = Get_Phase_Vehicle_Counter(intersection_id, traffic_signal_program_id)
     total_counter = {"total": 0, "motorbike": 0, "car": 0, "bus": 0, "truck": 0, "capacity": 0}
     for _counter in vehicle_counter:
         total_counter["total"] += _counter["total"]
@@ -277,10 +331,11 @@ def process(intersection_id, traffic_signal_program_id):
         total_counter["capacity"] += _phase["capacity"]
     print(total_counter)
 
-    los_total = get_level_of_service(total_counter["motorbike"], total_counter["car"], total_counter["bus"], total_counter["truck"], total_counter["capacity"])
+    los_total = get_level_of_service(total_counter["motorbike"], total_counter["car"], total_counter["bus"],
+                                     total_counter["truck"], total_counter["capacity"])
     print(los_total)
     if los_total == "A":
-        pass
+        return None
     elif los_total == "B":
         new_program = changeCycleTimeTrafficLightControl(traffic_signal_program, scale=1.1)
     elif los_total == "C":
@@ -288,8 +343,18 @@ def process(intersection_id, traffic_signal_program_id):
     else:
         new_program = changeGreenTimeTrafficLightControlForEachLanes(traffic_signal_program, vehicle_counter)
 
-    add_traffic_signal_program(int(new_program["intersection_id"]), 201, new_program["phase"],new_program["yellow_time"], new_program["time_transition"], new_program["green_time_max"],
-                               new_program["time_available_begin"], new_program["time_available_end"], new_program["days_of_week"], type_program = 1)
-
-
-
+    add_traffic_signal_program(intersection_id=intersection_id,
+                               traffic_signal_program_name="AT_" + traffic_signal_program_name,
+                               phases=new_program["phase"],
+                               yellow_time=new_program["yellow_time"],
+                               time_transition=new_program["time_transition"],
+                               green_time_max=new_program["green_time_max"],
+                               time_available_begin=new_program["time_available_begin"],
+                               time_available_end=new_program["time_available_end"],
+                               days_of_week=new_program["days_of_week"],
+                               type_program=1,
+                               active_automation=1,
+                               active_threashold=traffic_signal_program["active_threashold"],
+                               performance=evaluation_programs(traffic_signal_program, new_program),
+                               origin_traffic_signal_program_id=traffic_signal_program_id,
+                               name_orgin_traffic_signal_program=traffic_signal_program_name)
