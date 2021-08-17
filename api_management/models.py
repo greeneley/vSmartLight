@@ -51,12 +51,14 @@ class Intersection(models.Model):
     light_control = models.ForeignKey('LightControl', models.DO_NOTHING)
     user = models.ForeignKey('User', models.DO_NOTHING)
     name = models.CharField(max_length=255, blank=True, null=True)
-    longitude = models.DecimalField(max_digits=10, decimal_places=8, blank=True, null=True)
-    latitude = models.DecimalField(max_digits=10, decimal_places=8, blank=True, null=True)
+    ip_tu_dieu_khien = models.CharField(max_length=45, blank=True, null=True)
+    mac_tu_dieu_khien = models.CharField(max_length=45, blank=True, null=True)
+    phase_number = models.IntegerField(blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = 'intersection'
+
 
 
 class LightControl(models.Model):
@@ -143,8 +145,9 @@ class User(models.Model):
 
 class VehicleCounter(models.Model):
     record_id = models.AutoField(primary_key=True)
-    camera = models.ForeignKey(Camera, models.DO_NOTHING)
-    time_created = models.DateTimeField(blank=True, null=True)
+    intersection_id = models.IntegerField(blank=True, null=True)
+    phase = models.ForeignKey(Phase, models.DO_NOTHING)
+    time_created = models.CharField(max_length=100, blank=True, null=True)
     motorbike = models.IntegerField(blank=True, null=True)
     car = models.IntegerField(blank=True, null=True)
     bus = models.IntegerField(blank=True, null=True)
